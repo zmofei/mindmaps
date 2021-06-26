@@ -1,0 +1,1 @@
+This file only works with dev model, it's offers a template html page and initial the main Class

@@ -1,0 +1,1 @@
+The core folder for the graph, current we draw the main graph with HTML5 Canvas.
