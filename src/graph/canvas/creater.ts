@@ -1,7 +1,8 @@
 // This file is to create the init Canvas document and set up the resolution and other stuffs.
 // @ts-nocheck
 
-import { Nodes } from './nodes'
+import { NodeItem, NodeTree } from './nodes'
+import { NodeType } from './cavnas-node-types'
 
 interface size {
     width: number,
@@ -17,7 +18,9 @@ class CoreCanvas {
     }
     events: any
     scale: number
-    drawList: Nodes[]
+    nodeTrees: NodeItem[]
+    hover: NodeItem
+    selected: NodeItem
     size: size
     dpr: number
 
@@ -26,7 +29,6 @@ class CoreCanvas {
         this.scale = this.dpr;
         this.size = size
         this.offset = { x: size.width / 2 * this.scale, y: size.height / 2 * this.scale }
-        // this.offset = { x: 0, y: 0 }
         this.events = {}
 
         const canvas = this.canvas = document.createElement('canvas')
@@ -38,28 +40,17 @@ class CoreCanvas {
 
         // TEST
         // addNode
-        const testNode = window.testNode = new Nodes(this.ctx, {
+        const testNode = window.testNode = new NodeTree(this.ctx, {
             x: 0,
             y: 0,
             context: 'Hello'
         })
 
         let tid = 0;
-        // tid = testNode.addNode({
-        //     context: 'Robin Ma'
-        // })
-        // for (let i = 0; i < 10; i++) {
-        //     let x = testNode.addNode({
-        //         context: '1989'
-        //     }, tid)
-        //     if (i === 0) {
-        //         for (let i = 0; i < 10; i++) {
-        //             testNode.addNode({
-        //                 context: '111'
-        //             }, x)
-        //         }
-        //     }
-        // }
+        tid = testNode.addNode({
+            context: 'Robin Ma'
+        })
+
 
 
         tid = testNode.addNode({
@@ -72,23 +63,23 @@ class CoreCanvas {
             context: 'Mofei Zhu'
         })
 
-        // testNode.addNode({
-        //     context: 'Name: Mofei'
-        // }, tid)
-        // testNode.addNode({
-        //     context: 'Sex: Fame'
-        // }, tid)
+        testNode.addNode({
+            context: 'Name: Mofei'
+        }, tid)
+        testNode.addNode({
+            context: 'Sex: Fame'
+        }, tid)
 
-        // tid = testNode.addNode({
-        //     context: 'Age: 18'
-        // }, tid)
+        tid = testNode.addNode({
+            context: 'Age: 18'
+        }, tid)
 
 
-        // tid = testNode.addNode({
-        //     context: 'Mll'
-        // })
+        tid = testNode.addNode({
+            context: 'Mll'
+        })
 
-        this.drawList = [testNode]
+        this.nodeTrees = [testNode]
     }
 
     adjustCanvs(canvas: HTMLCanvasElement, size: size) {
@@ -115,20 +106,75 @@ class CoreCanvas {
             drawing = true;
             lastX = e.offsetX
             lastY = e.offsetY
-        })
+        });
+
         canvas.addEventListener('mousemove', (e) => {
-            if (!drawing) return false;
-            const { dpr, scale, offset } = this
-            const moveDelteX = e.offsetX - lastX;
-            const moveDelteY = e.offsetY - lastY;
-            const scaleRatio = (scale / dpr);
-            lastY = e.offsetY
-            lastX = e.offsetX
+            if (drawing) {
+                // drawing modle
+                const { dpr, scale, offset } = this
+                const moveDelteX = e.offsetX - lastX;
+                const moveDelteY = e.offsetY - lastY;
+                const scaleRatio = (scale / dpr);
+                lastY = e.offsetY
+                lastX = e.offsetX
 
-            this.ctx.translate(moveDelteX / scaleRatio, moveDelteY / scaleRatio)
+                this.ctx.translate(moveDelteX / scaleRatio, moveDelteY / scaleRatio)
 
-            this.draw()
-        })
+                this.draw()
+            } else {
+                // free move modle
+                const onCanvasX = (e.pageX * this.dpr - this.offset.x) / this.scale
+                const onCanvasY = (e.pageY * this.dpr - this.offset.y) / this.scale
+
+                let matchedNode = null;
+                this.nodeTrees.forEach(({ tree }) => {
+                    // Loop the tree's position
+                    const stack = [Object.keys(tree).map(roodId => tree[roodId])];
+                    while (stack.length >= 1) {
+                        const nodes = stack.pop();
+
+                        for (let node of nodes) {
+                            const nodeXRange = Math.max(Math.abs(node.x), 0)
+
+                            const xInBoundary = nodeXRange < Math.abs(onCanvasX);
+                            const yInBoundary = Math.abs(node.y || 0) < (Math.abs(onCanvasY) + node.outerHeight);
+                            const nodeChildren = node.children
+                            if (xInBoundary && yInBoundary) {
+                                // math Node
+                                //  -----------------         -----------------
+                                // |                 |       |                 |
+                                // .(x,y) ROOOT      |       |    Others       |
+                                // |                 |       |                 |
+                                //  -----------------        .(x,y)------------
+                                // If the node type is root the origin is in the left-middle
+                                // Other whise the origin is in the left-bottom
+                                const XinBox = onCanvasX >= node.x && onCanvasX <= node.x + node.boxWidth
+                                let YOffset = node.type === NodeType.Root ? node.boxHeight / 2 : 0
+                                const YinBox = onCanvasY >= (node.y - node.boxHeight + YOffset) && onCanvasY <= (node.y + YOffset)
+                                if (XinBox && YinBox) {
+                                    matchedNode = node
+                                    stack.length = 0
+                                    break
+                                }
+
+                                if (nodeChildren) {
+                                    stack.push(nodeChildren)
+                                }
+                            }
+                        }
+                    }
+                })
+
+                if (matchedNode) {
+                    this.canvas.style.cursor = 'pointer'
+                } else {
+                    this.canvas.style.cursor = 'default'
+                }
+
+                this.hover = matchedNode
+            }
+        });
+
         canvas.addEventListener('mouseup', (e) => {
             drawing = false
             const newTransform = this.ctx.getTransform()
@@ -137,7 +183,8 @@ class CoreCanvas {
                 x: newTransform.e,
                 y: newTransform.f
             }
-        })
+        });
+
         canvas.addEventListener('wheel', (e) => {
             const { dpr, scale, offset } = this
             e.preventDefault();
@@ -159,6 +206,13 @@ class CoreCanvas {
             }
 
             this.draw()
+        });
+
+        canvas.addEventListener('click', (e) => {
+            delete this.selected?.selected;
+            this.selected = this.hover;
+            this.selected?.selected = true;
+            this.draw();
         })
     }
 
@@ -173,6 +227,7 @@ class CoreCanvas {
 
         // 
         if (window.debug) {
+            // origin 
             this.ctx.save()
             this.ctx.beginPath()
             this.ctx.strokeStyle = 'red'
@@ -183,12 +238,29 @@ class CoreCanvas {
             this.ctx.lineTo(5, 0)
             this.ctx.stroke()
             this.ctx.closePath()
+
+            // gird
+            this.ctx.beginPath()
+            this.ctx.strokeStyle = '#ddd'
+            const xCount = Math.round(this.size.width / 10)
+            for (let i = -xCount; i < xCount; i += 1) {
+                this.ctx.moveTo(i * -10, -this.size.height)
+                this.ctx.lineTo(i * -10, this.size.height)
+            }
+            const yCount = Math.round(this.size.height / 10)
+            for (let i = -yCount; i < yCount; i += 1) {
+                this.ctx.moveTo(-this.size.width, i * -10)
+                this.ctx.lineTo(this.size.width, i * -10)
+            }
+            this.ctx.closePath()
+            this.ctx.stroke()
+
             this.ctx.restore()
         }
         // 
 
-        const drawList = this.drawList || [];
-        drawList.forEach(item => {
+        const nodeTrees = this.nodeTrees || [];
+        nodeTrees.forEach(item => {
             item.draw()
         })
 

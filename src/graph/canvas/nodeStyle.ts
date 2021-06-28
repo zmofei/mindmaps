@@ -1,7 +1,4 @@
-enum NodeType {
-    Root = 'ROOT',
-    Node = 'NODE'
-}
+import { NodeType } from './cavnas-node-types'
 
 const NodeMargin = 10
 const NodePadding = 10

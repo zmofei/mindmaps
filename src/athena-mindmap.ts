@@ -1,6 +1,7 @@
 import * as graph from './graph/canvas'
 
-window.debug = true;
+// window.debug = true;
+
 /**
  * @class
  * @param {string} container the dom id where we put the mindmap

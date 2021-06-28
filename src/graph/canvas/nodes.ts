@@ -1,12 +1,15 @@
 import { NodeType, drawNode, NodeMargin, NodePadding, ListPadding, } from './nodeStyle'
 
 interface config {
-    x: number,
-    y: number,
     context: string,
     fatherId?: string,
     type?: NodeType
 }
+
+
+type renderListWithItem = [NodeItem, { x: number, y: number }][];
+type renderListwithCoordinate = [number, number, number, number][]
+
 
 class NodeItem {
     ctx: CanvasRenderingContext2D
@@ -19,25 +22,26 @@ class NodeItem {
     boxHeight: number
     outerHeight: number
     outerWidth: number
-    childern: NodeItem[]
     childrenSumHeight: number
+    children: NodeItem[]
     context: string
+    selected: boolean
     fatherId: string
     father: NodeItem
     type: NodeType
     _groupindex: number
-    constructor(ctx: CanvasRenderingContext2D, config: config = { x: 0, y: 0, context: '', fatherId: null }) {
+    constructor(ctx: CanvasRenderingContext2D, config: config = { context: '', fatherId: null }) {
         const id = (+new Date()).toString(32) + (Math.random().toString(32))
         this.id = id
         this.ctx = ctx
-        this.x = config.x
-        this.y = config.y
+        this.x = 0
+        this.y = 0
         this.type = config.type ?? NodeType.Node
 
         this.context = config.context
         this.fatherId = config.fatherId || null
 
-        ctx.font = "30px Arial";
+        ctx.font = "14px Arial";
         const txt = this.ctx.measureText(config.context);
         this.contextWidth = txt.actualBoundingBoxRight - txt.actualBoundingBoxLeft;
         this.contextHeight = txt.actualBoundingBoxAscent - txt.actualBoundingBoxDescent;
@@ -50,46 +54,46 @@ class NodeItem {
     }
 }
 
-class Nodes {
+
+class NodeTree {
     config: {
         x: number,
         y: number,
-        context?: any,
+        context?: string,
         contextWidth?: number,
         contextHeight?: number,
     }
 
     ctx: CanvasRenderingContext2D
-    nodesTree: any
+    tree: { [key: string]: NodeItem }
     rootid: string
-    nodesRef: any
-    boardList: [NodeItem, { x: number, y: number }][]
-    textList: [NodeItem, { x: number, y: number }][]
-    linkList: [number, number, number, number][]
+    nodesRef: { [key: string]: NodeItem }
+    boardList: renderListWithItem
+    textList: renderListWithItem
+    linkList: renderListwithCoordinate
 
     constructor(ctx: CanvasRenderingContext2D, config = { x: 0, y: 0, context: '', type: NodeType.Root }) {
         this.ctx = ctx
         const item = new NodeItem(ctx, { ...config, type: NodeType.Root });
         this.rootid = item.id
-        this.nodesTree = {}
-        this.nodesTree[this.rootid] = item
+        this.tree = {}
+        this.tree[this.rootid] = item
         this.nodesRef = this.nodesRef || {}
         this.nodesRef[this.rootid] = item
         // bind father
-        if (item.fatherId && this.nodesTree[item.fatherId]) {
-            item.father = this.nodesTree[item.fatherId]
+        if (item.fatherId && this.tree[item.fatherId]) {
+            item.father = this.tree[item.fatherId]
         }
 
         console.log('init id', item.id)
     }
 
     addNode(config = { y: 0, context: '' }, fatherid?: string) {
-
         const fatherId = fatherid || this.rootid;
         const fatherItem = this.nodesRef[fatherId];
+        console.log(fatherItem.contextWidth)
         const item = new NodeItem(this.ctx, {
             ...config,
-            x: fatherItem.contextWidth + fatherItem.x + 40,
             fatherId: fatherId
         });
 
@@ -99,7 +103,7 @@ class Nodes {
         this.nodesRef[item.id] = item
 
         // bind father
-        if (item.fatherId && this.nodesTree[item.fatherId]) {
+        if (item.fatherId && this.tree[item.fatherId]) {
             item.father = fatherItem
         }
 
@@ -122,13 +126,16 @@ class Nodes {
         // x,y
         // A Node added may cause all the tree's layout change
         // we need to restracture all the x,y for the tree.
-        this._shakeTree()
+        this.shakeTree()
+
+        // 
+        this.draw()
 
         // 
         return item.id
     }
 
-    _shakeTree() {
+    private shakeTree() {
         interface drawInfo {
             x: number
             fatherY: number,
@@ -136,8 +143,8 @@ class Nodes {
             father?: NodeItem
         }
 
-        const root = Object.keys(this.nodesTree).map(id => this.nodesRef[id]);
-        const stacks: { info: drawInfo, items: any[] }[] = [{ info: { x: 0, fatherY: 0, fatherX: 0, }, items: root }];
+        const root = Object.keys(this.tree).map(id => this.nodesRef[id]);
+        const stacks: { info: drawInfo, items: NodeItem[] }[] = [{ info: { x: 0, fatherY: 0, fatherX: 0, }, items: root }];
 
         const boardList: [NodeItem, { x: number, y: number }][] = [];
         const textList: [NodeItem, { x: number, y: number }][] = [];
@@ -166,6 +173,9 @@ class Nodes {
                     itemY = nextSilbingStartY + item.childrenSumHeight / 2
                     nextSilbingStartY += item.childrenSumHeight
                 }
+                item.x = info.x
+                item.y = itemY
+
                 boardList.push([item, { x: info.x, y: itemY }])
                 textList.push([item, { x: info.x, y: itemY }])
 
@@ -194,25 +204,43 @@ class Nodes {
     drawBoard() {
         const list = this.boardList
         const ctx = this.ctx
+        const selecteNode: NodeItem[] = []
         ctx.save()
         const listByType: {
             [key: string]: {
                 type: NodeType,
-                list: any[]
+                list: renderListwithCoordinate | renderListWithItem
             }
         } = {}
+        // console.log('xx', list)
         list.forEach(listItem => {
             const [NodeItem] = listItem
+            if (NodeItem.selected) {
+                selecteNode.push(NodeItem)
+            }
             listByType[NodeItem.type] = listByType[NodeItem.type] || {
                 type: NodeItem.type,
                 list: []
             }
+            // @ts-ignore
             listByType[NodeItem.type].list.push(listItem)
         })
 
         Object.keys(listByType).forEach(type => {
             const list = listByType[type];
             drawNode(list.type, this.ctx, list.list);
+        })
+        ctx.restore()
+
+        // draw selected
+        ctx.save()
+        selecteNode?.forEach(node => {
+            this.ctx.fillStyle = 'rgba(0,102,255,0.2)'
+            if (node.type === NodeType.Root) {
+                this.ctx.fillRect(node.x, node.y - node.boxHeight / 2, node.boxWidth, node.boxHeight)
+            } else {
+                this.ctx.fillRect(node.x, node.y - node.boxHeight, node.boxWidth, node.boxHeight)
+            }
         })
         ctx.restore()
 
@@ -231,6 +259,8 @@ class Nodes {
                 ctx.font = "10px Arial";
                 ctx.fillText((item.childrenSumHeight).toFixed(2).toString(), 0, NodePadding * 2)
                 ctx.fillText((item.outerHeight).toFixed(2).toString(), 0, NodePadding * 2 + 10)
+                ctx.fillText(`${(item.x).toFixed(0).toString()},${(item.y || 0).toFixed(0).toString()} `, 0, NodePadding * 2 + 20)
+                // ctx.fillText((item.y).toFixed(0).toString(), 20, NodePadding * 2 + 30)
                 ctx.strokeRect(-NodePadding, -item.childrenSumHeight / 2, item.boxWidth, item.childrenSumHeight)
                 ctx.translate(-(x + NodePadding), -(y - item.boxHeight / 2))
                 ctx.restore()
@@ -270,34 +300,38 @@ class Nodes {
 
         ctx.beginPath()
         list.forEach(board => {
+            //                                    (endX, endY)
+            //                              ---------- B
+            //                             |
+            //          A --------(middleX, startY)
+            //  (startX, startY)           |
+            //                              ---------- C
+            //                                    (endX, endY)
+
             const [startX, startY, endX, endY] = board;
-            const deltaY = endY - startY;
-            const radius = 6;
+            const deltaY = Math.abs(endY - startY);
+            const radius = 6 || Math.min(6, deltaY / 2);
+            const middleX = (startX + endX) / 2;
+            const endLowerThanStart = endY < startY;
+
             ctx.moveTo(startX, startY);
-            ctx.lineTo((startX + endX) / 2 - radius, startY);
-            // if (Math.abs(deltaY) > 5) {
-            if (endY < startY) {
-                ctx.arc((startX + endX) / 2 - radius, startY - radius, radius, Math.PI / 2, 0, true)
-            } else if (endY > startY) {
-                ctx.arc((startX + endX) / 2 - radius, startY + radius, radius, Math.PI * (3 / 2), 2 * Math.PI)
+            ctx.lineTo(middleX - radius, startY);
+            // inflection
+            if (deltaY / 2 >= radius) {
+                ctx.quadraticCurveTo(middleX, startY, middleX, startY + (endLowerThanStart ? -radius : radius))
+                ctx.lineTo(middleX, endY + (endLowerThanStart ? radius : -radius));
+                ctx.quadraticCurveTo(middleX, endY, middleX + radius, endY)
+            } else {
+                ctx.bezierCurveTo(middleX, startY, middleX, endY, middleX + radius, endY)
             }
-
-            if (endY < startY) {
-                ctx.lineTo((startX + endX) / 2, endY + radius);
-                ctx.arc((startX + endX) / 2 + radius, endY + radius, radius, Math.PI, Math.PI * (3 / 2))
-            } else if (endY > startY) {
-                ctx.lineTo((startX + endX) / 2, endY - radius);
-                ctx.arc((startX + endX) / 2 + radius, endY - radius, radius, Math.PI, Math.PI / 2, true)
-            }
-            // }
-
+            // 
             ctx.lineTo(endX, endY)
         })
         ctx.stroke()
         ctx.closePath()
     }
 
-    draw(offset: { x: number, y: number }) {
+    draw() {
         this.drawBoard()
         this.drawText()
         this.drawLink()
@@ -305,4 +339,4 @@ class Nodes {
 }
 
 
-export { Nodes }
+export { NodeItem, NodeTree }
