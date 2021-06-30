@@ -80,7 +80,7 @@ class CoreCanvas {
         })
 
         const selected = testNode.nodesRef[tid];
-        selected.state = NodeState.Edit
+        // selected.state = NodeState.Edit
         this.nodeTrees = [testNode]
 
         tid = testNode.addNode({
