@@ -1,7 +1,7 @@
 {
-  "name": "athena-mindmap",
-  "version": "1.0.0",
-  "description": "A  knowledge sharing based mind-map platform",
+  "name": "@athena-map/mindmaps",
+  "version": "0.0.1",
+  "description": "A knowledge sharing based mind-map platform",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

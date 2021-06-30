@@ -1,4 +1,8 @@
 import { NodeType, drawNode, NodeMargin, NodePadding, ListPadding, } from './nodeStyle'
+import { NodeState } from './cavnas-node-types'
+import { Editor } from './editor'
+
+const editor = new Editor()
 
 interface config {
     context: string,
@@ -29,7 +33,9 @@ class NodeItem {
     fatherId: string
     father: NodeItem
     type: NodeType
+    _state: NodeState
     _groupindex: number
+    bindTree: NodeTree
     constructor(ctx: CanvasRenderingContext2D, config: config = { context: '', fatherId: null }) {
         const id = (+new Date()).toString(32) + (Math.random().toString(32))
         this.id = id
@@ -37,6 +43,7 @@ class NodeItem {
         this.x = 0
         this.y = 0
         this.type = config.type ?? NodeType.Node
+        this._state = NodeState.Default
 
         this.context = config.context
         this.fatherId = config.fatherId || null
@@ -51,6 +58,19 @@ class NodeItem {
         this.outerWidth = this.boxWidth + NodeMargin * 2
         // 
         this.childrenSumHeight = this.outerHeight
+    }
+
+    get state(): NodeState {
+        return this._state
+    }
+
+    set state(value) {
+        if (value === NodeState.Edit) {
+            this.bindTree.editoringNode = this
+        } else {
+            this.bindTree.editoringNode = null
+        }
+        this._state = value
     }
 }
 
@@ -71,6 +91,7 @@ class NodeTree {
     boardList: renderListWithItem
     textList: renderListWithItem
     linkList: renderListwithCoordinate
+    editoringNode: NodeItem
 
     constructor(ctx: CanvasRenderingContext2D, config = { x: 0, y: 0, context: '', type: NodeType.Root }) {
         this.ctx = ctx
@@ -84,14 +105,12 @@ class NodeTree {
         if (item.fatherId && this.tree[item.fatherId]) {
             item.father = this.tree[item.fatherId]
         }
-
-        console.log('init id', item.id)
+        item.bindTree = this
     }
 
     addNode(config = { y: 0, context: '' }, fatherid?: string) {
         const fatherId = fatherid || this.rootid;
         const fatherItem = this.nodesRef[fatherId];
-        console.log(fatherItem.contextWidth)
         const item = new NodeItem(this.ctx, {
             ...config,
             fatherId: fatherId
@@ -106,6 +125,7 @@ class NodeTree {
         if (item.fatherId && this.tree[item.fatherId]) {
             item.father = fatherItem
         }
+        item.bindTree = this
 
         // Re-computer position
         // Height: update the height of all the affected nodes from parent to root
@@ -135,6 +155,7 @@ class NodeTree {
         return item.id
     }
 
+    // Reset all the node's position
     private shakeTree() {
         interface drawInfo {
             x: number
@@ -149,6 +170,8 @@ class NodeTree {
         const boardList: [NodeItem, { x: number, y: number }][] = [];
         const textList: [NodeItem, { x: number, y: number }][] = [];
         const linkList: [number, number, number, number][] = [];
+
+        let editingNode = null
 
         while (stacks.length > 0) {
             const stackItem = stacks.shift();
@@ -188,6 +211,11 @@ class NodeTree {
                     ])
                 }
 
+                // 
+                if (item.state === NodeState.Edit) {
+                    editingNode = item
+                }
+
                 const children = item.children;
                 if (children) {
                     stacks.push({ info: { x: info.x + item.boxWidth + ListPadding, fatherY: itemY, fatherX: info.x, father: item }, items: children })
@@ -195,9 +223,9 @@ class NodeTree {
             })
         }
 
-        this.boardList = boardList
-        this.textList = textList
-        this.linkList = linkList
+        this.boardList = boardList;
+        this.textList = textList;
+        this.linkList = linkList;
     }
 
     // draw board box
@@ -212,9 +240,10 @@ class NodeTree {
                 list: renderListwithCoordinate | renderListWithItem
             }
         } = {}
-        // console.log('xx', list)
+
         list.forEach(listItem => {
             const [NodeItem] = listItem
+            console.log(NodeItem.selected)
             if (NodeItem.selected) {
                 selecteNode.push(NodeItem)
             }
@@ -250,26 +279,58 @@ class NodeTree {
                 const [item, offset] = board
                 const { x, y } = offset
 
+
+
+                // origin
+                ctx.save()
+                ctx.fillStyle = 'red'
+                ctx.translate(x, y)
+                ctx.fillRect(-2, -2, 4, 4)
+                ctx.restore()
+                // group
+                ctx.save()
+                ctx.fillStyle = 'red'
+                ctx.translate(x + NodePadding, y - item.boxHeight / 2)
+                this.ctx.strokeStyle = 'red'
+                ctx.strokeRect(-NodePadding, -item.childrenSumHeight / 2, item.boxWidth, item.childrenSumHeight)
+                ctx.restore()
+
+                // context
+                ctx.save()
+                ctx.translate(x, y)
+                ctx.translate(NodePadding, -item.boxHeight / 2)
+                ctx.strokeRect(0, -item.contextHeight / 2, item.contextWidth, item.contextHeight)
+                ctx.restore()
+                // outer
+                ctx.save()
+                ctx.strokeStyle = 'grey'
+                ctx.translate(x, y)
+                ctx.translate(-NodePadding, -item.boxHeight - NodeMargin)
+                ctx.strokeRect(0, 0, item.outerWidth, item.outerHeight)
+                ctx.restore()
+                // box
+                ctx.save()
+                ctx.strokeStyle = 'yellow'
+                ctx.translate(x, y)
+                ctx.translate(0, -item.boxHeight)
+                ctx.strokeRect(0, 0, item.boxWidth, item.boxHeight)
+                ctx.restore()
+
+
+                // Tips text
                 ctx.save()
                 ctx.translate(x + NodePadding, y - item.boxHeight / 2)
-                ctx.fillRect(0, 0, 1, 1)
-                // childrenSumHeight
-                this.ctx.strokeStyle = 'red'
                 this.ctx.fillStyle = 'red'
                 ctx.font = "10px Arial";
-                ctx.fillText((item.childrenSumHeight).toFixed(2).toString(), 0, NodePadding * 2)
-                ctx.fillText((item.outerHeight).toFixed(2).toString(), 0, NodePadding * 2 + 10)
-                ctx.fillText(`${(item.x).toFixed(0).toString()},${(item.y || 0).toFixed(0).toString()} `, 0, NodePadding * 2 + 20)
-                // ctx.fillText((item.y).toFixed(0).toString(), 20, NodePadding * 2 + 30)
-                ctx.strokeRect(-NodePadding, -item.childrenSumHeight / 2, item.boxWidth, item.childrenSumHeight)
+                ctx.fillText((item.childrenSumHeight).toFixed(2).toString(), item.boxWidth, NodePadding * 2 - item.boxHeight)
+                ctx.fillText((item.outerHeight).toFixed(2).toString(), item.boxWidth, NodePadding * 2 - item.boxHeight + 10)
+                ctx.fillText(`${(item.x).toFixed(0).toString()},${(item.y || 0).toFixed(0).toString()} `, item.boxWidth, NodePadding * 2 - item.boxHeight + 20)
                 ctx.translate(-(x + NodePadding), -(y - item.boxHeight / 2))
                 ctx.restore()
 
             })
 
         }
-        // 
-
     }
 
     drawText() {
@@ -287,6 +348,7 @@ class NodeTree {
             }
             ctx.translate(x + NodePadding, y - item.boxHeight / 2)
             const { context, boxHeight, boxWidth, outerHeight } = item
+            ctx.font = "14px Arial";
             ctx.fillText(context, 0, 0)
             ctx.translate(-(x + NodePadding), -(y - item.boxHeight / 2))
         })
@@ -300,6 +362,7 @@ class NodeTree {
 
         ctx.beginPath()
         list.forEach(board => {
+
             //                                    (endX, endY)
             //                              ---------- B
             //                             |
@@ -310,7 +373,7 @@ class NodeTree {
 
             const [startX, startY, endX, endY] = board;
             const deltaY = Math.abs(endY - startY);
-            const radius = 6 || Math.min(6, deltaY / 2);
+            const radius = 6;
             const middleX = (startX + endX) / 2;
             const endLowerThanStart = endY < startY;
 
@@ -331,10 +394,34 @@ class NodeTree {
         ctx.closePath()
     }
 
+    updateEditor() {
+        const node = this.editoringNode;
+        if (!node) return;
+        // TODO: Show the editor 
+        const { a: scale, e: ctxX, f: ctxY } = this.ctx.getTransform()
+        const { x: nodeX, y: nodeY, contextWidth, contextHeight } = node
+        const canvasOriginX = ctxX / scale;
+        const canvasOriginY = ctxY / scale;
+        const nodeOffsetX = canvasOriginX + nodeX
+        const nodeOffsetY = canvasOriginY + nodeY
+
+        console.log(node.type)
+        let offsetX = 0;
+        let offsetY = 0;
+        if (node.type === NodeType.Node) {
+            offsetX = NodePadding
+            offsetY -= node.boxHeight
+        }
+        editor.show(nodeOffsetX + offsetX, nodeOffsetY + offsetY, contextWidth, contextHeight, node.context)
+
+    }
+
     draw() {
+        // draw components step by step
         this.drawBoard()
         this.drawText()
         this.drawLink()
+        this.updateEditor()
     }
 }
 

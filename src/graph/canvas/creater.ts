@@ -2,7 +2,7 @@
 // @ts-nocheck
 
 import { NodeItem, NodeTree } from './nodes'
-import { NodeType } from './cavnas-node-types'
+import { NodeType, NodeState } from './cavnas-node-types'
 
 interface size {
     width: number,
@@ -52,7 +52,6 @@ class CoreCanvas {
         })
 
 
-
         tid = testNode.addNode({
             context: 'CKY'
         })
@@ -79,7 +78,13 @@ class CoreCanvas {
             context: 'Mll'
         })
 
+        const selected = testNode.nodesRef[tid];
+        selected.state = NodeState.Edit
         this.nodeTrees = [testNode]
+
+        tid = testNode.addNode({
+            context: 'Mll'
+        })
     }
 
     adjustCanvs(canvas: HTMLCanvasElement, size: size) {
@@ -95,40 +100,48 @@ class CoreCanvas {
         this.ctx.scale(this.dpr, this.dpr)
     }
 
-
+    // The events Config the canvas by translate and scale, so that NodeItems don't need to care about the translate and scale
     bindEvent() {
         const canvas = this.canvas;
-        let drawing = false;
-        let lastX = 0;
-        let lastY = 0;
+        let moving = 'DONE';
+        let mousedownX = null;
+        let mousedownY = null;
+        let lastX = null;
+        let lastY = null;
 
         canvas.addEventListener('mousedown', (e) => {
-            drawing = true;
-            lastX = e.offsetX
-            lastY = e.offsetY
+            moving = 'PREPARE';
+            lastX = mousedownX = e.offsetX
+            lastY = mousedownY = e.offsetY
         });
 
         canvas.addEventListener('mousemove', (e) => {
-            if (drawing) {
-                // drawing modle
+            if (moving === 'PREPARE' || moving === 'MOVING') {
+                // Moving modle
+                // In moving modle we translate the canvas, 
+                //   so that in the node tree draw step, 
+                //   the nodes don't need to consider the canvas translate.
                 const { dpr, scale, offset } = this
                 const moveDelteX = e.offsetX - lastX;
                 const moveDelteY = e.offsetY - lastY;
                 const scaleRatio = (scale / dpr);
                 lastY = e.offsetY
                 lastX = e.offsetX
+                moving = 'MOVING'
 
                 this.ctx.translate(moveDelteX / scaleRatio, moveDelteY / scaleRatio)
 
                 this.draw()
             } else {
-                // free move modle
-                const onCanvasX = (e.pageX * this.dpr - this.offset.x) / this.scale
-                const onCanvasY = (e.pageY * this.dpr - this.offset.y) / this.scale
+                // Free move modle
+                // In free modle, we calculate the mouse's relation with the nodes,
+                //   and save the hovered node to this.hover
+                const onCanvasX = (e.offsetX * this.dpr - this.offset.x) / this.scale
+                const onCanvasY = (e.offsetY * this.dpr - this.offset.y) / this.scale
 
                 let matchedNode = null;
+                // Loop the tree's position
                 this.nodeTrees.forEach(({ tree }) => {
-                    // Loop the tree's position
                     const stack = [Object.keys(tree).map(roodId => tree[roodId])];
                     while (stack.length >= 1) {
                         const nodes = stack.pop();
@@ -176,7 +189,9 @@ class CoreCanvas {
         });
 
         canvas.addEventListener('mouseup', (e) => {
-            drawing = false
+            e.preventDefault()
+            moving = 'DONE'
+            lastX = lastY = null
             const newTransform = this.ctx.getTransform()
             this.scale = newTransform.a
             this.offset = {
@@ -191,7 +206,6 @@ class CoreCanvas {
 
             const scaleDelta = Math.pow(1.01, -e.deltaY);
             const scaleRatio = (scale / dpr);
-
 
             ctx.setTransform(scale, 0, 0, scale, offset.x, offset.y)
             this.ctx.translate(-offset.x / scale + e.offsetX / scaleRatio, -offset.y / scale + e.offsetY / scaleRatio)
@@ -209,15 +223,22 @@ class CoreCanvas {
         });
 
         canvas.addEventListener('click', (e) => {
+            console.log(e.offsetX - mousedownX)
+            if (Math.abs(e.offsetX - mousedownX) > 5 || Math.abs(e.offsetY - mousedownY) > 5) return false;
             delete this.selected?.selected;
             this.selected = this.hover;
             this.selected?.selected = true;
+
             this.draw();
         })
     }
 
+    // Draw Nodetree
+    // 1. Clean the canvas
+    // 2. Call the draw function from the Node tree
     draw() {
         const ctx = this.ctx;
+        // Reset the canvas and clean it
         ctx.save()
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -225,6 +246,7 @@ class CoreCanvas {
         ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
         ctx.restore();
 
+        
         // 
         if (window.debug) {
             // origin 
@@ -257,12 +279,12 @@ class CoreCanvas {
 
             this.ctx.restore()
         }
-        // 
 
+        // Draw the node tree
         const nodeTrees = this.nodeTrees || [];
         nodeTrees.forEach(item => {
             item.draw()
-        })
+        });
 
     }
 }

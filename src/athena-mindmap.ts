@@ -1,6 +1,6 @@
 import * as graph from './graph/canvas'
 
-// window.debug = true;
+window.debug = true;
 
 /**
  * @class
