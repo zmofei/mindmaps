@@ -28,13 +28,14 @@ class NodeItem {
     outerWidth: number
     childrenSumHeight: number
     children: NodeItem[]
-    context: string
+
     selected: boolean
     fatherId: string
     father: NodeItem
     type: NodeType
     _state: NodeState
     _groupindex: number
+    _context: string
     bindTree: NodeTree
     constructor(ctx: CanvasRenderingContext2D, config: config = { context: '', fatherId: null }) {
         const id = (+new Date()).toString(32) + (Math.random().toString(32))
@@ -48,16 +49,36 @@ class NodeItem {
         this.context = config.context
         this.fatherId = config.fatherId || null
 
+        // 
+        this.childrenSumHeight = this.outerHeight
+    }
+
+    computerSize() {
+        const ctx = this.ctx
+
         ctx.font = "14px Arial";
-        const txt = this.ctx.measureText(config.context);
-        this.contextWidth = txt.actualBoundingBoxRight - txt.actualBoundingBoxLeft;
-        this.contextHeight = txt.actualBoundingBoxAscent - txt.actualBoundingBoxDescent;
+        const txt = this.ctx.measureText(this._context);
+        this.contextWidth = txt.width;
+        // @ts-ignore
+        this.contextHeight = txt.fontBoundingBoxAscent + txt.fontBoundingBoxDescent;
         this.boxWidth = this.contextWidth + NodePadding * 2;
         this.boxHeight = this.contextHeight + NodePadding * 2;
         this.outerHeight = this.boxHeight + NodeMargin * 2
         this.outerWidth = this.boxWidth + NodeMargin * 2
-        // 
-        this.childrenSumHeight = this.outerHeight
+    }
+
+    get context(): string {
+        return this._context
+    }
+    set context(value) {
+        this._context = value
+        this.computerSize()
+        // this.tree
+        // setTimeout(() => {
+        this.bindTree?.shakeTree()
+        this.bindTree?.graph?.draw()
+        // }, 1000)
+
     }
 
     get state(): NodeState {
@@ -92,9 +113,11 @@ class NodeTree {
     textList: renderListWithItem
     linkList: renderListwithCoordinate
     editoringNode: NodeItem
+    graph: any
 
-    constructor(ctx: CanvasRenderingContext2D, config = { x: 0, y: 0, context: '', type: NodeType.Root }) {
-        this.ctx = ctx
+    constructor(graph: any, config = { x: 0, y: 0, context: '', type: NodeType.Root }) {
+        this.graph = graph
+        const ctx = this.ctx = graph.ctx
         const item = new NodeItem(ctx, { ...config, type: NodeType.Root });
         this.rootid = item.id
         this.tree = {}
@@ -106,6 +129,11 @@ class NodeTree {
             item.father = this.tree[item.fatherId]
         }
         item.bindTree = this
+
+        editor.change((value: string) => {
+            this.shakeTree()
+            this.draw()
+        })
     }
 
     addNode(config = { y: 0, context: '' }, fatherid?: string) {
@@ -156,7 +184,7 @@ class NodeTree {
     }
 
     // Reset all the node's position
-    private shakeTree() {
+    shakeTree() {
         interface drawInfo {
             x: number
             fatherY: number,
@@ -200,7 +228,9 @@ class NodeTree {
                 item.y = itemY
 
                 boardList.push([item, { x: info.x, y: itemY }])
+
                 textList.push([item, { x: info.x, y: itemY }])
+
 
                 if (info.father) {
                     linkList.push([
@@ -243,7 +273,6 @@ class NodeTree {
 
         list.forEach(listItem => {
             const [NodeItem] = listItem
-            console.log(NodeItem.selected)
             if (NodeItem.selected) {
                 selecteNode.push(NodeItem)
             }
@@ -342,6 +371,7 @@ class NodeTree {
 
         list.forEach(board => {
             const [item, offset] = board
+            if (item === this.editoringNode) return false
             let { x, y } = offset
             if (item.type === NodeType.Root) {
                 y = y + item.boxHeight / 2
@@ -396,23 +426,27 @@ class NodeTree {
 
     updateEditor() {
         const node = this.editoringNode;
-        if (!node) return;
+        const dpr = window.devicePixelRatio || 1
+        if (!node) {
+            editor.hide()
+            return;
+        }
         // TODO: Show the editor 
-        const { a: scale, e: ctxX, f: ctxY } = this.ctx.getTransform()
-        const { x: nodeX, y: nodeY, contextWidth, contextHeight } = node
-        const canvasOriginX = ctxX / scale;
-        const canvasOriginY = ctxY / scale;
-        const nodeOffsetX = canvasOriginX + nodeX
-        const nodeOffsetY = canvasOriginY + nodeY
+        const { a: ctxScale, e: ctxOffsetX, f: ctxOffsetY } = this.ctx.getTransform()
 
-        console.log(node.type)
+        const { x: nodeX, y: nodeY, contextWidth, contextHeight } = node
+
+        const [screenOrignX, screenOrginY] = [(ctxOffsetX + nodeX * ctxScale) / dpr, (ctxOffsetY + nodeY * ctxScale) / dpr]
+
         let offsetX = 0;
         let offsetY = 0;
         if (node.type === NodeType.Node) {
-            offsetX = NodePadding
-            offsetY -= node.boxHeight
+            offsetX = NodePadding * (ctxScale / dpr)
+            offsetY -= NodePadding * (ctxScale / dpr)
         }
-        editor.show(nodeOffsetX + offsetX, nodeOffsetY + offsetY, contextWidth, contextHeight, node.context)
+
+
+        editor.show(screenOrignX + offsetX, screenOrginY + offsetY, contextWidth, contextHeight, ctxScale, node)
 
     }
 

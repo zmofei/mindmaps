@@ -21,11 +21,12 @@ class CoreCanvas {
     nodeTrees: NodeItem[]
     hover: NodeItem
     selected: NodeItem
+    editItem: NodeItem
     size: size
     dpr: number
 
     constructor(size: size) {
-        this.dpr = window.devicePixelRatio
+        this.dpr = window.devicePixelRatio || 1
         this.scale = this.dpr;
         this.size = size
         this.offset = { x: size.width / 2 * this.scale, y: size.height / 2 * this.scale }
@@ -40,7 +41,7 @@ class CoreCanvas {
 
         // TEST
         // addNode
-        const testNode = window.testNode = new NodeTree(this.ctx, {
+        const testNode = window.testNode = new NodeTree(this, {
             x: 0,
             y: 0,
             context: 'Hello'
@@ -223,9 +224,19 @@ class CoreCanvas {
         });
 
         canvas.addEventListener('click', (e) => {
-            console.log(e.offsetX - mousedownX)
+
+            //  selected.state = NodeState.Edit
+            if (this.hover && this.selected === this.hover) {
+                this.hover.state = NodeState.Edit
+                this.editItem = this.hover
+            } else if (this.hover !== this.editItem) {
+                this.editItem?.state = NodeState.Default
+                this.editItem = null
+            }
+
+            // pick up hovered node
+            this.selected?.selected = false
             if (Math.abs(e.offsetX - mousedownX) > 5 || Math.abs(e.offsetY - mousedownY) > 5) return false;
-            delete this.selected?.selected;
             this.selected = this.hover;
             this.selected?.selected = true;
 
@@ -246,7 +257,7 @@ class CoreCanvas {
         ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
         ctx.restore();
 
-        
+
         // 
         if (window.debug) {
             // origin 
