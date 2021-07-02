@@ -73,6 +73,10 @@ class CoreCanvas {
         tid = testNode.addNode({
             context: 'Age: 18'
         }, tid)
+        console.log('add after', tid)
+        testNode.addNode({
+            context: '1'
+        }, tid)
 
 
         tid = testNode.addNode({
@@ -81,11 +85,19 @@ class CoreCanvas {
 
         const selected = testNode.nodesRef[tid];
         // selected.state = NodeState.Edit
-        this.nodeTrees = [testNode]
+
 
         tid = testNode.addNode({
-            context: 'Mll'
+            context: 'Ml2'
         })
+
+
+        // for (let i = 0; i < 5; i++) {
+        //     tid = testNode.addNode({
+        //         context: i
+        //     }, tid)
+        // }
+        this.nodeTrees = [testNode]
     }
 
     adjustCanvs(canvas: HTMLCanvasElement, size: size) {
@@ -114,6 +126,13 @@ class CoreCanvas {
             moving = 'PREPARE';
             lastX = mousedownX = e.offsetX
             lastY = mousedownY = e.offsetY
+
+            if (this.editItem) {
+                // Clean the Editor model
+                this.editItem?.state = NodeState.Default
+                this.editItem = null
+                this.draw()
+            }
         });
 
         canvas.addEventListener('mousemove', (e) => {
@@ -224,8 +243,12 @@ class CoreCanvas {
         });
 
         canvas.addEventListener('click', (e) => {
+            // Prevent trigger the click event while you movingthe canvas
+            if (Math.abs(e.offsetX - mousedownX) > 5 || Math.abs(e.offsetY - mousedownY) > 5) return false;
 
-            //  selected.state = NodeState.Edit
+
+            // If you click the Node twice the node will become the Editor mode
+            // Otherwise the Node will exit the Editor mode
             if (this.hover && this.selected === this.hover) {
                 this.hover.state = NodeState.Edit
                 this.editItem = this.hover
@@ -234,11 +257,11 @@ class CoreCanvas {
                 this.editItem = null
             }
 
-            // pick up hovered node
+            // Re assign the select Node
             this.selected?.selected = false
-            if (Math.abs(e.offsetX - mousedownX) > 5 || Math.abs(e.offsetY - mousedownY) > 5) return false;
             this.selected = this.hover;
             this.selected?.selected = true;
+
 
             this.draw();
         })

@@ -3,13 +3,15 @@ import { NodeItem } from "./nodes"
 export class Editor {
     box: HTMLElement
     dom: HTMLElement
-    chagneEvents: Function[]
+    events: {
+        [key: string]: Function[]
+    }
     changeNode: NodeItem
     lastPosition: { x: number, y: number, scale: number }
+    renderTimeoutId: ReturnType<typeof setTimeout>
+    lastNodeId: string
     constructor() {
-        this.chagneEvents = []
         const box = this.box = document.createElement('div')
-
 
         box.style.position = 'absolute'
         box.style.zIndex = '999'
@@ -18,24 +20,47 @@ export class Editor {
         this.dom.contentEditable = 'true'
         this.dom.style.font = "14px Arial"
         this.dom.style.position = 'absolute'
-        this.dom.style.left = '0'
+        this.dom.style.left = '1px'
         this.dom.style.top = '0'
         this.dom.style.whiteSpace = 'nowrap'
+        this.dom.style.minWidth = '40px'
 
         this.dom.style.transform = "translate(0, -100%)"
         box.appendChild(this.dom)
         document.body.style.position = 'relative'
         document.body.appendChild(box)
         // bind Change event
+        this.dom.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.returnValue = false
+                this.events.new = this.events.new || []
+                this.events.new.forEach(fn => {
+                    fn({
+                        father: this.changeNode.id,
+                        after: null
+                    })
+                })
+            }
+        })
+        // 
         this.dom.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 e.returnValue = false
+                this.events.new.forEach(fn => {
+                    fn({
+                        father: this.changeNode.fatherId,
+                        after: this.changeNode.id
+                    })
+                })
             }
         })
+        // 
         this.dom.addEventListener('input', (e) => {
-            console.log(this.dom.innerText.replace(/\n/gi, ''))
             this.changeNode.context = this.dom.innerText.replace(/\n/gi, '')
         })
+
+        // init events
+        this.events = {}
 
     }
 
@@ -47,26 +72,28 @@ export class Editor {
         this.dom.style.transformOrigin = `bottom left`
         this.box.style.transform = `translate(${x}px, ${y}px) scale(${scale / 2})`
 
-        if (!(x === lastPosition.x && y === lastPosition.y && scale === lastPosition.scale)) {
+        const willUpdate = !(node.id === this.lastNodeId)
+        // focus to the dom only if we change the node
+        if (willUpdate) {
             this.dom.innerText = node.context
             var range = document.createRange()
             var sel = window.getSelection()
-            range.setStart(this.dom, 0)
-            range.collapse(true)
-
+            range.selectNodeContents(this.dom)
             sel.removeAllRanges()
             sel.addRange(range)
-
+            this.lastNodeId = node.id
         }
         this.lastPosition = { x, y, scale }
     }
 
     hide() {
+        this.lastNodeId = null
         this.box.style.display = 'none'
     }
 
-    change(fn: Function) {
-        this.chagneEvents.push(fn)
+    onChange(type: string, fn: Function) {
+        this.events[type] = this.events[type] || []
+        this.events[type].push(fn)
     }
 
 }

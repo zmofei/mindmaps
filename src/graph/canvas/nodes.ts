@@ -14,6 +14,9 @@ interface config {
 type renderListWithItem = [NodeItem, { x: number, y: number }][];
 type renderListwithCoordinate = [number, number, number, number][]
 
+// editor: Editor
+// Bind edirot object
+//  this.editor = editor
 
 class NodeItem {
     ctx: CanvasRenderingContext2D
@@ -58,7 +61,7 @@ class NodeItem {
 
         ctx.font = "14px Arial";
         const txt = this.ctx.measureText(this._context);
-        this.contextWidth = txt.width;
+        this.contextWidth = Math.max(txt.width, 40);
         // @ts-ignore
         this.contextHeight = txt.fontBoundingBoxAscent + txt.fontBoundingBoxDescent;
         this.boxWidth = this.contextWidth + NodePadding * 2;
@@ -73,12 +76,8 @@ class NodeItem {
     set context(value) {
         this._context = value
         this.computerSize()
-        // this.tree
-        // setTimeout(() => {
         this.bindTree?.shakeTree()
         this.bindTree?.graph?.draw()
-        // }, 1000)
-
     }
 
     get state(): NodeState {
@@ -94,7 +93,6 @@ class NodeItem {
         this._state = value
     }
 }
-
 
 class NodeTree {
     config: {
@@ -113,6 +111,7 @@ class NodeTree {
     textList: renderListWithItem
     linkList: renderListwithCoordinate
     editoringNode: NodeItem
+    editor: Editor
     graph: any
 
     constructor(graph: any, config = { x: 0, y: 0, context: '', type: NodeType.Root }) {
@@ -124,19 +123,24 @@ class NodeTree {
         this.tree[this.rootid] = item
         this.nodesRef = this.nodesRef || {}
         this.nodesRef[this.rootid] = item
+
         // bind father
         if (item.fatherId && this.tree[item.fatherId]) {
             item.father = this.tree[item.fatherId]
         }
         item.bindTree = this
 
-        editor.change((value: string) => {
-            this.shakeTree()
-            this.draw()
+        // bind editor and listen to the editor events
+        this.editor = editor
+        editor.onChange('new', ({ father, after }: { [key: string]: string }) => {
+            this.addNode({ context: 'New Node' }, father, after, true)
+            console.log('add node', father, after)
         })
+
     }
 
-    addNode(config = { y: 0, context: '' }, fatherid?: string) {
+    addNode(config = { context: '' }, fatherid?: string, afterid?: string, edit?: boolean) {
+
         const fatherId = fatherid || this.rootid;
         const fatherItem = this.nodesRef[fatherId];
         const item = new NodeItem(this.ctx, {
@@ -145,8 +149,30 @@ class NodeTree {
         });
 
         // add item to fater
-        fatherItem.children = fatherItem.children || []
-        fatherItem.children.push(item)
+        const children = fatherItem.children = fatherItem.children || [];
+        // fatherItem.children = fatherItem.children || []
+
+        console.log('\t', config, fatherid, afterid, edit)
+        // if we have afterid we have to put the new item after the id
+        // else we can add the new node to the end of the list
+        if (afterid) {
+            const index = children.findIndex(item => { return item.id === afterid });
+            if (index !== -1) {
+                children.splice(index + 1, 0, item)
+            } else {
+                return false;
+            }
+        } else {
+            children.push(item)
+        }
+
+        if (edit) {
+            this.graph.selected && (this.graph.selected.selected = false);
+            this.graph.selected = item;
+            item.selected = true
+            this.editoringNode = item
+        }
+
         this.nodesRef[item.id] = item
 
         // bind father
@@ -157,7 +183,7 @@ class NodeTree {
 
         // Re-computer position
         // Height: update the height of all the affected nodes from parent to root
-        const onlyChildren = (fatherItem.children || []).length <= 1
+        const onlyChildren = children.length <= 1
         const increateHeight = onlyChildren ? 0 : item.outerHeight
         let loopItem = item;
         while (loopItem) {
@@ -177,7 +203,9 @@ class NodeTree {
         this.shakeTree()
 
         // 
-        this.draw()
+        this.graph.draw()
+
+        console.log('new item id', item.id)
 
         // 
         return item.id
@@ -307,9 +335,6 @@ class NodeTree {
             list.forEach(board => {
                 const [item, offset] = board
                 const { x, y } = offset
-
-
-
                 // origin
                 ctx.save()
                 ctx.fillStyle = 'red'
@@ -389,7 +414,7 @@ class NodeTree {
         const list = this.linkList
         const ctx = this.ctx
         ctx.save()
-
+        ctx.strokeStyle = '#e99b47';
         ctx.beginPath()
         list.forEach(board => {
 
@@ -443,6 +468,9 @@ class NodeTree {
         if (node.type === NodeType.Node) {
             offsetX = NodePadding * (ctxScale / dpr)
             offsetY -= NodePadding * (ctxScale / dpr)
+        } else if (node.type === NodeType.Root) {
+            offsetX = NodePadding * (ctxScale / dpr)
+            offsetY += (NodePadding - 2) * (ctxScale / dpr)
         }
 
 

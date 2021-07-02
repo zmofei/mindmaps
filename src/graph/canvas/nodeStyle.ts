@@ -7,6 +7,7 @@ const ListPadding = 100
 
 function drawNode(type: NodeType, ctx: CanvasRenderingContext2D, list: any) {
     ctx.save()
+    ctx.strokeStyle = '#e99b47';
     if (type === NodeType.Root) {
         ctx.beginPath()
         list.forEach((board: any) => {
