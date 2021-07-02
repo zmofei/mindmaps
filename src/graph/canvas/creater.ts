@@ -44,7 +44,7 @@ class CoreCanvas {
         const testNode = window.testNode = new NodeTree(this, {
             x: 0,
             y: 0,
-            context: 'Hello'
+            context: 'Hello World'
         })
 
         let tid = 0;
@@ -52,44 +52,60 @@ class CoreCanvas {
             context: 'Robin Ma'
         })
 
+        for (let i = 0; i < 5; i++) {
+            testNode.addNode({
+                context: 'Robin Ma'
+            }, tid)
+        }
 
-        tid = testNode.addNode({
-            context: 'CKY'
-        })
-        testNode.addNode({
-            context: 'Name: kaiyue'
-        }, tid)
+
         tid = testNode.addNode({
             context: 'Mofei Zhu'
         })
 
-        testNode.addNode({
-            context: 'Name: Mofei'
-        }, tid)
-        testNode.addNode({
-            context: 'Sex: Fame'
-        }, tid)
+        for (let i = 0; i < 5; i++) {
+            testNode.addNode({
+                context: 'Mofei Zhu'
+            }, tid)
+        }
 
-        tid = testNode.addNode({
-            context: 'Age: 18'
-        }, tid)
-        console.log('add after', tid)
-        testNode.addNode({
-            context: '1'
-        }, tid)
+        // tid = testNode.addNode({
+        //     context: 'CKY'
+        // })
+        // testNode.addNode({
+        //     context: 'Name: kaiyue'
+        // }, tid)
+        // tid = testNode.addNode({
+        //     context: 'Mofei Zhu'
+        // })
+
+        // testNode.addNode({
+        //     context: 'Name: Mofei'
+        // }, tid)
+        // testNode.addNode({
+        //     context: 'Sex: Fame'
+        // }, tid)
+
+        // tid = testNode.addNode({
+        //     context: 'Age: 18'
+        // }, tid)
+        // console.log('add after', tid)
+        // testNode.addNode({
+        //     context: '1'
+        // }, tid)
 
 
-        tid = testNode.addNode({
-            context: 'Mll'
-        })
+        // tid = testNode.addNode({
+        //     context: 'Mll'
+        // })
 
-        const selected = testNode.nodesRef[tid];
-        // selected.state = NodeState.Edit
+        // const selected = testNode.nodesRef[tid];
+        // // selected.state = NodeState.Edit
 
 
-        tid = testNode.addNode({
-            context: 'Ml2'
-        })
+        // tid = testNode.addNode({
+        //     context: 'Ml2'
+        // })
 
 
         // for (let i = 0; i < 5; i++) {
@@ -167,10 +183,9 @@ class CoreCanvas {
                         const nodes = stack.pop();
 
                         for (let node of nodes) {
-                            const nodeXRange = Math.max(Math.abs(node.x), 0)
-
-                            const xInBoundary = nodeXRange < Math.abs(onCanvasX);
-                            const yInBoundary = Math.abs(node.y || 0) < (Math.abs(onCanvasY) + node.outerHeight);
+                            const xInBoundary = node.x >= 0 ? (onCanvasX >= node.x) : (onCanvasX <= node.x)
+                            const yBoundarys = [node.y - node.childrenSumHeight, node.y + node.childrenSumHeight]
+                            const yInBoundary = onCanvasY >= Math.min.apply(null, yBoundarys) && onCanvasY <= Math.max.apply(null, yBoundarys)
                             const nodeChildren = node.children
                             if (xInBoundary && yInBoundary) {
                                 // math Node
