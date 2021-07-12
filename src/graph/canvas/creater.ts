@@ -44,30 +44,106 @@ class CoreCanvas {
         const testNode = window.testNode = new NodeTree(this, {
             x: 0,
             y: 0,
-            context: 'Hello World'
+            context: '雅典娜的图'
         })
 
         let tid = 0;
         tid = testNode.addNode({
-            context: 'Robin Ma'
+            context: 'HTTP CODE'
         })
 
-        for (let i = 0; i < 5; i++) {
+        let tid1xx = testNode.addNode({
+            context: '1xx'
+        }, tid)
+
+        for (let i of ['100 Continue', '101 Switching Protocol', '102 Processing', '103 Early Hints']) {
             testNode.addNode({
-                context: 'Robin Ma'
-            }, tid)
+                context: i
+            }, tid1xx)
+        }
+
+        let tid2xx = testNode.addNode({
+            context: '2xx'
+        }, tid)
+
+        for (let i of ['200 OK', '201 Created', '202 Accepted', '203 Non-Authoritative Information', '204 No Content', '205 Reset Content', '206 Partial Content']) {
+            testNode.addNode({
+                context: i
+            }, tid2xx)
+        }
+
+        let tid3xx = testNode.addNode({
+            context: '3xx'
+        }, tid)
+
+
+        for (let i of ['300 Multiple Choices', '301 Moved Permanently', '302 Found', '3', '3 See Other', '304 Not Modified', '307 Temporary Redirect', '308 Permanent Redirect']) {
+            testNode.addNode({
+                context: i
+            }, tid3xx)
         }
 
 
-        tid = testNode.addNode({
-            context: 'Mofei Zhu'
-        })
+        let tid4xx = testNode.addNode({
+            context: '4xx'
+        }, tid)
 
-        for (let i = 0; i < 5; i++) {
+
+        for (let i of ['400 Bad Request',
+            '401 Unauthorized',
+            '402 Payment Required',
+            '403 Forbidden',
+            '404 Not Found',
+            '405 Method Not Allowed',
+            '406 Not Acceptable',
+            '407 Proxy Authentication Required',
+            '408 Request Timeout',
+            '409 Conflict',
+            '410 Gone',
+            '411 Length Required',
+            '412 Precondition Failed',
+            '413 Payload Too Large',
+            '414 URI Too Long',
+            '415 Unsupported Media Type',
+            '416 Range Not Satisfiable',
+            '417 Expectation Failed',
+            '418 I\'m a teapot',
+            '422 Unprocessable Entity',
+            '425 Too Early',
+            '426 Upgrade Required',
+            '428 Precondition Required',
+            '429 Too Many Requests',
+            '431 Request Header Fields Too Large',
+            '451 Unavailable For Legal Reasons']) {
             testNode.addNode({
-                context: 'Mofei Zhu'
-            }, tid)
+                context: i
+            }, tid4xx)
         }
+
+
+        let tid5xx = testNode.addNode({
+            context: '5xx'
+        }, tid)
+
+
+        for (let i of ['500 Internal Server Error',
+            '501 Not Implemented',
+            '502 Bad Gateway',
+            '503 Service Unavailable',
+            '504 Gateway Timeout',
+            '505 HTTP Version Not Supported',
+            '506 Variant Also Negotiates',
+            '507 Insufficient Storage',
+            '508 Loop Detected',
+            '510 Not Extended',
+            '511 Network Authentication Required']) {
+            testNode.addNode({
+                context: i
+            }, tid5xx)
+        }
+
+
+
         this.nodeTrees = [testNode]
     }
 
