@@ -132,9 +132,9 @@ class NodeTree {
 
         // bind editor and listen to the editor events
         this.editor = editor
-        editor.onChange('new', ({ father, after }: { [key: string]: string }) => {
-            this.addNode({ context: 'New Node' }, father, after, true)
-            console.log('add node', father, after)
+        editor.onChange('done', ({ father, after }: { [key: string]: string }) => {
+            this.editoringNode = null
+            this.graph.draw()
         })
 
     }
@@ -152,7 +152,6 @@ class NodeTree {
         const children = fatherItem.children = fatherItem.children || [];
         // fatherItem.children = fatherItem.children || []
 
-        console.log('\t', config, fatherid, afterid, edit)
         // if we have afterid we have to put the new item after the id
         // else we can add the new node to the end of the list
         if (afterid) {
@@ -167,9 +166,10 @@ class NodeTree {
         }
 
         if (edit) {
-            this.graph.selected && (this.graph.selected.selected = false);
-            this.graph.selected = item;
-            item.selected = true
+            // this.graph.selected && (this.graph.selected.selected = false);
+            // this.graph.selected = item;
+            // item.selected = true
+            this.graph.editItem = item
             this.editoringNode = item
         }
 
@@ -204,8 +204,6 @@ class NodeTree {
 
         // 
         this.graph.draw()
-
-        console.log('new item id', item.id)
 
         // 
         return item.id
@@ -288,7 +286,7 @@ class NodeTree {
 
     // draw board box
     drawBoard() {
-        const list = this.boardList
+        const list = this.boardList || []
         const ctx = this.ctx
         const selecteNode: NodeItem[] = []
         ctx.save()
@@ -388,7 +386,7 @@ class NodeTree {
     }
 
     drawText() {
-        const list = this.textList
+        const list = this.textList || []
         const ctx = this.ctx
         ctx.save()
         ctx.textAlign = 'left'
@@ -411,7 +409,7 @@ class NodeTree {
     }
 
     drawLink() {
-        const list = this.linkList
+        const list = this.linkList || []
         const ctx = this.ctx
         ctx.save()
         ctx.strokeStyle = '#e99b47';

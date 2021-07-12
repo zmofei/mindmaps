@@ -44,59 +44,106 @@ class CoreCanvas {
         const testNode = window.testNode = new NodeTree(this, {
             x: 0,
             y: 0,
-            context: 'Hello'
+            context: '雅典娜的图'
         })
 
         let tid = 0;
         tid = testNode.addNode({
-            context: 'Robin Ma'
+            context: 'HTTP CODE'
         })
 
-
-        tid = testNode.addNode({
-            context: 'CKY'
-        })
-        testNode.addNode({
-            context: 'Name: kaiyue'
-        }, tid)
-        tid = testNode.addNode({
-            context: 'Mofei Zhu'
-        })
-
-        testNode.addNode({
-            context: 'Name: Mofei'
-        }, tid)
-        testNode.addNode({
-            context: 'Sex: Fame'
+        let tid1xx = testNode.addNode({
+            context: '1xx'
         }, tid)
 
-        tid = testNode.addNode({
-            context: 'Age: 18'
+        for (let i of ['100 Continue', '101 Switching Protocol', '102 Processing', '103 Early Hints']) {
+            testNode.addNode({
+                context: i
+            }, tid1xx)
+        }
+
+        let tid2xx = testNode.addNode({
+            context: '2xx'
         }, tid)
-        console.log('add after', tid)
-        testNode.addNode({
-            context: '1'
+
+        for (let i of ['200 OK', '201 Created', '202 Accepted', '203 Non-Authoritative Information', '204 No Content', '205 Reset Content', '206 Partial Content']) {
+            testNode.addNode({
+                context: i
+            }, tid2xx)
+        }
+
+        let tid3xx = testNode.addNode({
+            context: '3xx'
         }, tid)
 
 
-        tid = testNode.addNode({
-            context: 'Mll'
-        })
-
-        const selected = testNode.nodesRef[tid];
-        // selected.state = NodeState.Edit
-
-
-        tid = testNode.addNode({
-            context: 'Ml2'
-        })
+        for (let i of ['300 Multiple Choices', '301 Moved Permanently', '302 Found', '3', '3 See Other', '304 Not Modified', '307 Temporary Redirect', '308 Permanent Redirect']) {
+            testNode.addNode({
+                context: i
+            }, tid3xx)
+        }
 
 
-        // for (let i = 0; i < 5; i++) {
-        //     tid = testNode.addNode({
-        //         context: i
-        //     }, tid)
-        // }
+        let tid4xx = testNode.addNode({
+            context: '4xx'
+        }, tid)
+
+
+        for (let i of ['400 Bad Request',
+            '401 Unauthorized',
+            '402 Payment Required',
+            '403 Forbidden',
+            '404 Not Found',
+            '405 Method Not Allowed',
+            '406 Not Acceptable',
+            '407 Proxy Authentication Required',
+            '408 Request Timeout',
+            '409 Conflict',
+            '410 Gone',
+            '411 Length Required',
+            '412 Precondition Failed',
+            '413 Payload Too Large',
+            '414 URI Too Long',
+            '415 Unsupported Media Type',
+            '416 Range Not Satisfiable',
+            '417 Expectation Failed',
+            '418 I\'m a teapot',
+            '422 Unprocessable Entity',
+            '425 Too Early',
+            '426 Upgrade Required',
+            '428 Precondition Required',
+            '429 Too Many Requests',
+            '431 Request Header Fields Too Large',
+            '451 Unavailable For Legal Reasons']) {
+            testNode.addNode({
+                context: i
+            }, tid4xx)
+        }
+
+
+        let tid5xx = testNode.addNode({
+            context: '5xx'
+        }, tid)
+
+
+        for (let i of ['500 Internal Server Error',
+            '501 Not Implemented',
+            '502 Bad Gateway',
+            '503 Service Unavailable',
+            '504 Gateway Timeout',
+            '505 HTTP Version Not Supported',
+            '506 Variant Also Negotiates',
+            '507 Insufficient Storage',
+            '508 Loop Detected',
+            '510 Not Extended',
+            '511 Network Authentication Required']) {
+            testNode.addNode({
+                context: i
+            }, tid5xx)
+        }
+
+
+
         this.nodeTrees = [testNode]
     }
 
@@ -167,10 +214,9 @@ class CoreCanvas {
                         const nodes = stack.pop();
 
                         for (let node of nodes) {
-                            const nodeXRange = Math.max(Math.abs(node.x), 0)
-
-                            const xInBoundary = nodeXRange < Math.abs(onCanvasX);
-                            const yInBoundary = Math.abs(node.y || 0) < (Math.abs(onCanvasY) + node.outerHeight);
+                            const xInBoundary = node.x >= 0 ? (onCanvasX >= node.x) : (onCanvasX <= node.x)
+                            const yBoundarys = [node.y - node.childrenSumHeight, node.y + node.childrenSumHeight]
+                            const yInBoundary = onCanvasY >= Math.min.apply(null, yBoundarys) && onCanvasY <= Math.max.apply(null, yBoundarys)
                             const nodeChildren = node.children
                             if (xInBoundary && yInBoundary) {
                                 // math Node
@@ -246,24 +292,46 @@ class CoreCanvas {
             // Prevent trigger the click event while you movingthe canvas
             if (Math.abs(e.offsetX - mousedownX) > 5 || Math.abs(e.offsetY - mousedownY) > 5) return false;
 
-
+            this.selected?.selected = false
             // If you click the Node twice the node will become the Editor mode
             // Otherwise the Node will exit the Editor mode
             if (this.hover && this.selected === this.hover) {
+                this.selected = null
                 this.hover.state = NodeState.Edit
                 this.editItem = this.hover
             } else if (this.hover !== this.editItem) {
                 this.editItem?.state = NodeState.Default
                 this.editItem = null
+                // Re assign the select Node
+                this.selected = this.hover;
+                this.selected?.selected = true;
             }
-
-            // Re assign the select Node
-            this.selected?.selected = false
-            this.selected = this.hover;
-            this.selected?.selected = true;
-
-
             this.draw();
+        })
+
+        window.addEventListener('keyup', (e) => {
+            const NodeTree = this.nodeTrees[0];
+            if (e.key === 'Enter') {
+                // console.log(NodeTree.editoringNode)
+                if (this.editItem) {
+                    // If you press enter, and if we have the edit node, we will quit the edit mode by:
+                    // 1. set the editor node as seleced node
+                    this.editItem.selected = true
+                    this.selected = this.editItem
+                    // 2. set the editItem to null
+                    this.editItem.state = NodeState.Default;
+                    this.editItem = null;
+                } else if (this.selected) {
+                    // If we have the selected node, we will enter the edit mode by
+                    const { fatherId, id } = this.selected;
+                    // 1. clean the selected node
+                    this.selected && (this.selected.selected = false)
+                    this.selected = null;
+                    // 2. add a new editor and set it to the editor mode
+                    NodeTree.addNode({ context: 'New Node' }, fatherId, id, true)
+                }
+                this.draw()
+            }
         })
     }
 

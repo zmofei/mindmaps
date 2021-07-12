@@ -46,12 +46,19 @@ export class Editor {
         this.dom.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 e.returnValue = false
-                this.events.new.forEach(fn => {
+            }
+        })
+
+        this.dom.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                // console.log(1)
+                this.events.done.forEach(fn => {
                     fn({
                         father: this.changeNode.fatherId,
                         after: this.changeNode.id
                     })
                 })
+                e.preventDefault()
             }
         })
         // 
