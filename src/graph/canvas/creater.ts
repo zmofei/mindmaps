@@ -68,51 +68,6 @@ class CoreCanvas {
                 context: 'Mofei Zhu'
             }, tid)
         }
-
-        // tid = testNode.addNode({
-        //     context: 'CKY'
-        // })
-        // testNode.addNode({
-        //     context: 'Name: kaiyue'
-        // }, tid)
-        // tid = testNode.addNode({
-        //     context: 'Mofei Zhu'
-        // })
-
-        // testNode.addNode({
-        //     context: 'Name: Mofei'
-        // }, tid)
-        // testNode.addNode({
-        //     context: 'Sex: Fame'
-        // }, tid)
-
-        // tid = testNode.addNode({
-        //     context: 'Age: 18'
-        // }, tid)
-        // console.log('add after', tid)
-        // testNode.addNode({
-        //     context: '1'
-        // }, tid)
-
-
-        // tid = testNode.addNode({
-        //     context: 'Mll'
-        // })
-
-        // const selected = testNode.nodesRef[tid];
-        // // selected.state = NodeState.Edit
-
-
-        // tid = testNode.addNode({
-        //     context: 'Ml2'
-        // })
-
-
-        // for (let i = 0; i < 5; i++) {
-        //     tid = testNode.addNode({
-        //         context: i
-        //     }, tid)
-        // }
         this.nodeTrees = [testNode]
     }
 
@@ -261,24 +216,46 @@ class CoreCanvas {
             // Prevent trigger the click event while you movingthe canvas
             if (Math.abs(e.offsetX - mousedownX) > 5 || Math.abs(e.offsetY - mousedownY) > 5) return false;
 
-
+            this.selected?.selected = false
             // If you click the Node twice the node will become the Editor mode
             // Otherwise the Node will exit the Editor mode
             if (this.hover && this.selected === this.hover) {
+                this.selected = null
                 this.hover.state = NodeState.Edit
                 this.editItem = this.hover
             } else if (this.hover !== this.editItem) {
                 this.editItem?.state = NodeState.Default
                 this.editItem = null
+                // Re assign the select Node
+                this.selected = this.hover;
+                this.selected?.selected = true;
             }
-
-            // Re assign the select Node
-            this.selected?.selected = false
-            this.selected = this.hover;
-            this.selected?.selected = true;
-
-
             this.draw();
+        })
+
+        window.addEventListener('keyup', (e) => {
+            const NodeTree = this.nodeTrees[0];
+            if (e.key === 'Enter') {
+                // console.log(NodeTree.editoringNode)
+                if (this.editItem) {
+                    // If you press enter, and if we have the edit node, we will quit the edit mode by:
+                    // 1. set the editor node as seleced node
+                    this.editItem.selected = true
+                    this.selected = this.editItem
+                    // 2. set the editItem to null
+                    this.editItem.state = NodeState.Default;
+                    this.editItem = null;
+                } else if (this.selected) {
+                    // If we have the selected node, we will enter the edit mode by
+                    const { fatherId, id } = this.selected;
+                    // 1. clean the selected node
+                    this.selected && (this.selected.selected = false)
+                    this.selected = null;
+                    // 2. add a new editor and set it to the editor mode
+                    NodeTree.addNode({ context: 'New Node' }, fatherId, id, true)
+                }
+                this.draw()
+            }
         })
     }
 

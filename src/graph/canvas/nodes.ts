@@ -132,8 +132,9 @@ class NodeTree {
 
         // bind editor and listen to the editor events
         this.editor = editor
-        editor.onChange('new', ({ father, after }: { [key: string]: string }) => {
-            this.addNode({ context: 'New Node' }, father, after, true)
+        editor.onChange('done', ({ father, after }: { [key: string]: string }) => {
+            this.editoringNode = null
+            this.graph.draw()
         })
 
     }
@@ -165,9 +166,10 @@ class NodeTree {
         }
 
         if (edit) {
-            this.graph.selected && (this.graph.selected.selected = false);
-            this.graph.selected = item;
-            item.selected = true
+            // this.graph.selected && (this.graph.selected.selected = false);
+            // this.graph.selected = item;
+            // item.selected = true
+            this.graph.editItem = item
             this.editoringNode = item
         }
 
