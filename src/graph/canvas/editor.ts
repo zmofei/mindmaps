@@ -33,13 +33,13 @@ export class Editor {
         this.dom.addEventListener('keydown', (e) => {
             if (e.key === 'Tab') {
                 e.returnValue = false
-                this.events.new = this.events.new || []
-                this.events.new.forEach(fn => {
-                    fn({
-                        father: this.changeNode.id,
-                        after: null
-                    })
-                })
+                // this.events.new = this.events.new || []
+                // this.events.new.forEach(fn => {
+                //     fn({
+                //         father: this.changeNode.id,
+                //         after: null
+                //     })
+                // })
             }
         })
         // 

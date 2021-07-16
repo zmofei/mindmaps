@@ -309,6 +309,32 @@ class CoreCanvas {
             this.draw();
         })
 
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                if (this.selected) {
+                    const NodeTree = this.nodeTrees[0];
+                    e.returnValue = false
+                    // If we have the selected node, we will insert a new node after the selected node
+                    const { id } = this.selected;
+                    this.selected && (this.selected.selected = false)
+                    this.selected = null;
+                    // add node
+                    NodeTree.addNode({ context: 'New Node' }, id, null, true)
+                } else if (this.editItem) {
+                    console.log(this.editItem)
+                    // If you press enter, and if we have the edit node, we will quit the edit mode by:
+                    // 1. set the editor node as seleced node
+                    this.editItem.selected = true
+                    this.selected = this.editItem
+                    // 2. set the editItem to null
+                    this.editItem.state = NodeState.Default;
+                    this.editItem = null;
+                    this.draw()
+                }
+
+            }
+        })
+
         window.addEventListener('keyup', (e) => {
             const NodeTree = this.nodeTrees[0];
             if (e.key === 'Enter') {
@@ -321,6 +347,7 @@ class CoreCanvas {
                     // 2. set the editItem to null
                     this.editItem.state = NodeState.Default;
                     this.editItem = null;
+                    this.draw()
                 } else if (this.selected) {
                     // If we have the selected node, we will enter the edit mode by
                     const { fatherId, id } = this.selected;
@@ -330,7 +357,7 @@ class CoreCanvas {
                     // 2. add a new editor and set it to the editor mode
                     NodeTree.addNode({ context: 'New Node' }, fatherId, id, true)
                 }
-                this.draw()
+
             }
         })
     }
